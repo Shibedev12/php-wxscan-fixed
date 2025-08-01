@@ -81,32 +81,32 @@ function Loops(bindDataManager) {
 				},
 
 			    fiveday() {
-					var newtile, weekend, icons,
-						startidx = (foreDataDaily[0].name==='Tonight' ? 1 : 2),
-						days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+					var newtile, weekend, icons;
 					
 					$('#forecast-title').text("5 DAY FORECAST");
 					$('#forecast-tiles').empty();
 					
-					for (var i=startidx; i<=10; i+=2 ) {
-						
-						weekend = ( dateFns.isWeekend(foreDataDaily[i].startTime) ? ' weekend' : '');
+					// New loop for Open-Meteo daily data (up to 5 days)
+					for (var i = 0; i < 5 && i < foreDataDaily.length; i++) {
+						const dayData = foreDataDaily[i];
+						weekend = (dateFns.isWeekend(dayData.startTime) ? ' weekend' : '');
 						newtile = $("<div class='forecast-tile daily" + weekend + "'></div>");
 						
-						$("<div class='header'></div>") .appendTo(newtile) .text(days[ dateFns.getDay(foreDataDaily[i].startTime) ]);
+						$("<div class='header'></div>").appendTo(newtile).text(dateFns.format(dayData.startTime, 'ddd').toUpperCase());
 						
-						icons = mapNWSicons(foreDataDaily[i].icon);
-						for (x=icons.length-1; x>=0; x--){
-							$("<img class='icon' src=''/>") .appendTo(newtile) .attr('src', icons[x]);	
+						icons = dayData.icon; // Already a URL string from the adapter
+						for (x = icons.length - 1; x >= 0; x--) {
+							$("<img class='icon' src=''/>").appendTo(newtile).attr('src', icons[x]);	
 						}
 						
-						$("<div class='high'></div>") .appendTo(newtile) .text(foreDataDaily[i].temperature);
-						$("<div class='low'></div>")  .appendTo(newtile) .text(foreDataDaily[i+1].temperature);
+						$("<div class='high'></div>").appendTo(newtile).text(dayData.temperature);
+						// The adapter in location.js provides 'temperatureLow'
+						$("<div class='low'></div>").appendTo(newtile).text(dayData.temperatureLow); 
 						
 						$('#forecast-tiles').append(newtile);				
 					}
 					
-					$('#forecast-tiles').css('display','flex');					
+					$('#forecast-tiles').css('display', 'flex');					
 				},
 
 			    hourly() {
@@ -351,170 +351,3 @@ function mapNWSicons(url){
 	});
 
 }
-
-/*
-
-wind E 14
-gusts 17 mph
-humidity 58%
-dew point 72(degree symbol)
-heat index 95(degree symbol) / wind chill
-pressure 30.02 S
-visibility 10 miles
-uv index High
-partly cloudy
-
-*/
-
-// sample data
-/*
-
-https://query.yahooapis.com/v1/public/yql?format=json&q=select * from weather.forecast where woeid=2402292
-			  
-"units":{  
-   "distance":"mi",
-   "pressure":"in",
-   "speed":"mph",
-   "temperature":"F"
-},
-"title":"Yahoo! Weather - Fargo, ND, US",
-"link":"http://us.rd.yahoo.com/dailynews/rss/weather/Country__Country/*https://weather.yahoo.com/country/state/city-2402292/",
-"description":"Yahoo! Weather for Fargo, ND, US",
-"language":"en-us",
-"lastBuildDate":"Thu, 12 Oct 2017 10:10 PM CDT",
-"ttl":"60",
-"location":{  
-   "city":"Fargo",
-   "country":"United States",
-   "region":" ND"
-},
-"wind":{  
-   "chill":"52",
-   "direction":"295",
-   "speed":"18"
-},
-"atmosphere":{  
-   "humidity":"54",
-   "pressure":"978.0",
-   "rising":"0",
-   "visibility":"16.1"
-},
-"astronomy":{  
-   "sunrise":"7:41 am",
-   "sunset":"6:46 pm"
-},
-"image":{  
-   "title":"Yahoo! Weather",
-   "width":"142",
-   "height":"18",
-   "link":"http://weather.yahoo.com",
-   "url":"http://l.yimg.com/a/i/brand/purplelogo//uh/us/news-wea.gif"
-},
-"item":{  
-   "title":"Conditions for Fargo, ND, US at 09:00 PM CDT",
-   "lat":"46.865089",
-   "long":"-96.829224",
-   "link":"http://us.rd.yahoo.com/dailynews/rss/weather/Country__Country/*https://weather.yahoo.com/country/state/city-2402292/",
-   "pubDate":"Thu, 12 Oct 2017 09:00 PM CDT",
-   "condition":{  
-	  "code":"27",
-	  "date":"Thu, 12 Oct 2017 09:00 PM CDT",
-	  "temp":"55",
-	  "text":"Mostly Cloudy"
-   },
-   "forecast":[  
-	  {  
-		 "code":"30",
-		 "date":"12 Oct 2017",
-		 "day":"Thu",
-		 "high":"70",
-		 "low":"48",
-		 "text":"Partly Cloudy"
-	  },
-	  {  
-		 "code":"32",
-		 "date":"13 Oct 2017",
-		 "day":"Fri",
-		 "high":"58",
-		 "low":"37",
-		 "text":"Sunny"
-	  },
-	  {  
-		 "code":"39",
-		 "date":"14 Oct 2017",
-		 "day":"Sat",
-		 "high":"49",
-		 "low":"38",
-		 "text":"Scattered Showers"
-	  },
-	  {  
-		 "code":"34",
-		 "date":"15 Oct 2017",
-		 "day":"Sun",
-		 "high":"56",
-		 "low":"31",
-		 "text":"Mostly Sunny"
-	  },
-	  {  
-		 "code":"34",
-		 "date":"16 Oct 2017",
-		 "day":"Mon",
-		 "high":"65",
-		 "low":"35",
-		 "text":"Mostly Sunny"
-	  },
-	  {  
-		 "code":"34",
-		 "date":"17 Oct 2017",
-		 "day":"Tue",
-		 "high":"65",
-		 "low":"39",
-		 "text":"Mostly Sunny"
-	  },
-	  {  
-		 "code":"30",
-		 "date":"18 Oct 2017",
-		 "day":"Wed",
-		 "high":"64",
-		 "low":"48",
-		 "text":"Partly Cloudy"
-	  },
-	  {  
-		 "code":"30",
-		 "date":"19 Oct 2017",
-		 "day":"Thu",
-		 "high":"65",
-		 "low":"44",
-		 "text":"Partly Cloudy"
-	  },
-	  {  
-		 "code":"30",
-		 "date":"20 Oct 2017",
-		 "day":"Fri",
-		 "high":"66",
-		 "low":"49",
-		 "text":"Partly Cloudy"
-	  },
-	  {  
-		 "code":"28",
-		 "date":"21 Oct 2017",
-		 "day":"Sat",
-		 "high":"61",
-		 "low":"49",
-		 "text":"Mostly Cloudy"
-	  }
-   ],
-   "description":"<![CDATA[<img src=\"http://l.yimg.com/a/i/us/we/52/27.gif\"/>\n<BR />\n<b>Current Conditions:</b>\n<BR />Mostly Cloudy\n<BR />\n<BR />\n<b>Forecast:</b>\n<BR /> Thu - Partly Cloudy. High: 70Low: 48\n<BR /> Fri - Sunny. High: 58Low: 37\n<BR /> Sat - Scattered Showers. High: 49Low: 38\n<BR /> Sun - Mostly Sunny. High: 56Low: 31\n<BR /> Mon - Mostly Sunny. High: 65Low: 35\n<BR />\n<BR />\n<a href=\"http://us.rd.yahoo.com/dailynews/rss/weather/Country__Country/*https://weather.yahoo.com/country/state/city-2402292/\">Full Forecast at Yahoo! Weather</a>\n<BR />\n<BR />\n<BR />\n]]>",
-   "guid":{  
-	  "isPermaLink":"false"
-   }
-
-}
-
-
-Current Conditions:</b>\n<BR />Mostly Cloudy\n<BR />\n<BR />\n<b>
-Forecast:</b>\n<BR /> Thu - Partly Cloudy. High: 70Low: 48\n<BR /> Fri - Sunny. High: 58Low: 37\n<BR /> Sat - Scattered Showers. High: 49Low: 38\n<BR /> Sun - Mostly Sunny. High: 56Low: 31\n<BR /> 
-Mon - Mostly Sunny. High: 65Low: 35\n<BR />\n<BR />\n<a href=\"http://us.rd.yahoo.com/dailynews/rss/weather/Country__Country/*https://weather.yahoo.com/country/state/city-2402292/\">Full Forecast at Yahoo! Weather</a>\n<BR />\n<BR />\n<BR />\n]]>",
-   "guid":{  
-
-*/

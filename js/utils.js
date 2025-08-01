@@ -14,6 +14,57 @@ function shuffle (array) {
 	return array;
 }
 
+// Add this helper function at the top of the file or in a utility script
+function mapWMOtoText(code) {
+    const mapping = {
+        0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+        45: 'Fog', 48: 'Depositing rime fog',
+        51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+        56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
+        61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+        66: 'Light freezing rain', 67: 'Heavy freezing rain',
+        71: 'Slight snow fall', 73: 'Moderate snow fall', 75: 'Heavy snow fall',
+        77: 'Snow grains',
+        80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+        85: 'Slight snow showers', 86: 'Heavy snow showers',
+        95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+    };
+    return mapping[code] || 'N/A';
+}
+
+function mapWMOtoIcons(code) {
+    // This is a sample mapping. The original icon set (01-47.png) seems based on Yahoo's codes.
+    // A direct 1-to-1 mapping from WMO is not perfect and may need adjustments.
+	const map = {
+        0: [26, 25],  // Clear -> Sunny/Clear
+        1: [28, 27],  // Mainly Clear -> Mostly Sunny/Mostly Clear
+        2: [28, 27],  // Partly Cloudy -> Partly Cloudy
+        3: [22, 21],  // Overcast -> Cloudy
+        45: [15, 15], // Fog -> Fog
+        48: [15, 15], // Fog -> Fog
+        51: [8, 8],   // Drizzle -> Rain
+        53: [8, 8],
+        55: [8, 8],
+        61: [7, 7],   // Rain -> Showers
+        63: [7, 7],
+        65: [5, 5],
+        71: [10, 10], // Snow -> Snow
+        73: [10, 10],
+        75: [11, 11],
+        80: [7, 7],   // Showers -> Showers
+        81: [5, 5],
+        82: [5, 5],
+        85: [10, 10], // Snow showers
+        86: [11, 11],
+        95: [1, 1],   // Thunderstorm
+        96: [1, 1],
+        99: [1, 1]
+	};
+    // Simplified logic: Assume 'day' for now.
+    const icons = map[code] || [22, 21]; // Default to cloudy
+    return ['images/icons/' + ('0' + icons[0]).slice(-2) + '.png'];
+}
+
 function getRandom(min, max) {
   return Math.random() * (max - min) + min;
 }

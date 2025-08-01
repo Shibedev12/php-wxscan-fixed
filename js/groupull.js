@@ -7,71 +7,73 @@ function GroupDataManager() {
 			{name:'Fargo', n2:'ND'},
 			{name:'North Hollywood', n2:'CA'},
 			{name:'Los Angeles', n2:'CA'},
-			{name:'Huntington Beach'},
+			{name:'Huntington Beach', n2:'CA'},
 			{name:'Las Vegas', n2:'NV'},
 			{name:'Honolulu', n2:'HI'},
 			{name:'Orlando', n2:'FL'},
 			{name:'New York', n2:'NY'},
 			{name:'Napa', n2:'CA'},
-			{name:'Montego Bay', n2:''},
+			{name:'Montego Bay', n2:'JM'}, // Country code updated for better geocoding
 			{name:'Kona', n2:'HI'},
-			{name:'Kalipaki Beach', n2:''},
+			{name:'Kalapaki Beach', n2:'HI'}, // Name corrected for better geocoding
 			{name:'Ixtapa', n2:'MX'}
 		]
 	;
 	
 	checkRefresh();	
-	setInterval(checkRefresh, 300000);
-
+	setInterval(checkRefresh, 300000); // 5 minutes
 
 	// check to see if data needs to be refreshed
     function checkRefresh() {
-		var woeid, location;
-		
-		for (location of locations) {
-			
-			// check the expiration
+		for (const location of locations) {
+			// check the expiration, refresh every 5 minutes
 			if (location.hasOwnProperty('xdate') && dateFns.isFuture(location.xdate)) { continue; }
-		
-			woeid = location.hasOwnProperty('woeid') ? location.woeid : '';
-
-
-			// woeid is the id for the location to pull data for
-			var url = 'https://query.yahooapis.com/v1/public/yql?format=json&q=' + 
-					  'select * from weather.forecast where woeid' +
-					  (woeid ? '='+woeid : ' in (select woeid from geo.places(1) where text="(' + (location.name + ' ' + location.n2).trim() + ')")' );
 			
-			pullData(url, location);
-
+			pullData(location);
 		}
-		
     }
 	
-	function pullData(url, location) {
-		var $span;
+	async function pullData(location) {
+		// If we don't have lat/lon, get them first.
+		if (!location.hasOwnProperty('latitude')) {
+			const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location.name)}&count=1`;
+			try {
+				const response = await fetch(geoUrl);
+				const geoData = await response.json();
+				if (geoData.results && geoData.results.length > 0) {
+					const result = geoData.results[0];
+					location.latitude = result.latitude;
+					location.longitude = result.longitude;
+                    location.id = result.id; // Unique ID from geocoding
+				} else {
+					console.error("Geocoding failed for: ", location.name);
+					return;
+				}
+			} catch (error) {
+				console.error("Error fetching geocoding data:", error);
+				return;
+			}
+		}
 		
-		// ajax the latest observation
-		$.getJSON(url, function(data) {
-			location.data = data.query.results.channel;
+        // Now fetch weather data
+		const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
+		
+		$.getJSON(weatherUrl, function(data) {
+			location.data = data;
+			
+            const locationId = 'loc-' + location.id;
+			let $span = $('#marquee-now>span#' + locationId);
 
-			if ( !location.hasOwnProperty('woeid') ) {
-				location.woeid = location.data.link.match(/(\d*)\/$/)[1];
-				$span = $("<span id='" + location.woeid + "'></span>").appendTo('#marquee-now');					
-			} else {
-				$span = $('#marquee-now>span#' + location.woeid);							  
+			if ($span.length === 0) {
+				$span = $(`<span id='${locationId}'></span>`).appendTo('#marquee-now');
 			}
 
-			// display the current info
-			$span.text(location.name + ': ' + location.data.item.condition.temp + ' ' + location.data.item.condition.text.toLowerCase());
+            const weatherText = mapWMOtoText(data.current.weather_code);
+			$span.text(`${location.name}: ${Math.round(data.current.temperature_2m)}°F ${weatherText}`);
 						
-
-			// set the expiration date/time
-			location.xdate = dateFns.addMinutes(location.data.lastBuildDate, location.data.ttl);			
-
+			// Set the expiration date/time (e.g., 5 minutes from now)
+			location.xdate = dateFns.addMinutes(new Date(), 5);
 		});
-	
 	}
-	
-	
 }
 var groupDataManager = new GroupDataManager;

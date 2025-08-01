@@ -72,9 +72,16 @@ RADAR < MAIN CITY < CITY 1 < CITY 2
 				// Currently (10 sec)
 				currentConditions() {
 					$('.city-info-slide #subhead-title').text('Currently');
-					$('.city-info-slide #subhead-city').text(location.city);
+
+					// CHARIOTS - Temp Fix
+					// City isn't in the location dictonary so grab it from whatever the hell sets the other thing
+					let location_city_fix = $('#city').text();
+					$('.city-info-slide #subhead-city').text(location_city_fix); // location.city pre fix
 					
-					var obsData = location.observations,		
+					// CHARIOTS - On Further Inspection
+					// The Location Varible is just NULL.
+					// So this code needs to be rewritten to get the data from elsewhere
+					var obsData = location.observations
 						strLabels =	'Humidity<br>Dew Point<br>Pressure<Br>Wind<br>Gusts<br>',
 						strData =
 							obsData(0).atmosphere.humidity + '%<br>'+
@@ -85,6 +92,7 @@ RADAR < MAIN CITY < CITY 1 < CITY 2
 							(obsData(1).windGust.value!=null ? mps2mph( obsData(1).windGust.value ) : 'none') + 
 							'<br>' // gusts show mph 					
 					;
+
 
 					if (parseInt(obsData(0).wind.chill) < parseInt(obsData(0).item.condition.temp)) {
 						strLabels+='Wind Chill';
