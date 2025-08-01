@@ -1,180 +1,128 @@
+// A valid API key for weather.com is required.
+var api_key = '8de2d8b3a93542c9a2d8b3a935a2c909'; // <--- IMPORTANT: REPLACE WITH YOUR WEATHER API KEY
+
+// A valid Mapbox access token is required for the basemap.
+var map_key = 'pk.eyJ1Ijoid2VhdGhlciIsImEiOiJjbHAxbHNjdncwaDhvMmptcno1ZTdqNDJ0In0.iywE3NefjboFg11a11ON0Q'; // <--- IMPORTANT: REPLACE WITH YOUR MAPBOX KEY
 
 function Radar(divIDin, intervalHoursIn, zoomIn, latitudeIn, longitudeIn, withSat) {
-	
-	var map,
-	divID = divIDin,
-	intervalHours = intervalHoursIn,
-	zoom = zoomIn,
-	latitude  = latitudeIn,
-	longitude = longitudeIn;
-	
-	this.setView = function(lat, long, zoomLevel){
-		map.setView(L.latLng(lat, long), zoomLevel)	
-	};
-	
 
-	startAnimation();
-	setInterval(updatePeriod, 300000);
-	
-	function updatePeriod() {
-		var endDate = roundDate(new Date()),
-		    startDate = dateFns.subHours(endDate, 3),
-		    newAvailableTimes = L.TimeDimension.Util.explodeTimeRange(startDate, endDate, 'PT5M');		
-		
-		map.timeDimension.setAvailableTimes(newAvailableTimes, 'replace');
-		map.timeDimension.setCurrentTime(startDate);		
-	}
-	
-	// snap date to 5 minute intervals
-	function roundDate(date) {
-		date.setUTCMinutes( Math.round(date.getUTCMinutes() / 5) * 5);
-		date.setUTCSeconds(0);
-		return date;
-	}
-	
-	function startAnimation () {
+    var map,
+        divID = divIDin,
+        zoom = zoomIn,
+        latitude = latitudeIn,
+        longitude = longitudeIn,
+        timeLayers = [],
+        animationInterval = null;
 
-		var endDate = roundDate(new Date()),
-			player;	
-			
-		map = L.map(divID, {
-			zoom: zoom,
-			fullscreenControl: false,
-			timeDimension: true,
-			timeDimensionControl: true, 
-			timeDimensionOptions:{
-				timeInterval: "PT" + intervalHours + "H/" + endDate.toISOString(),
-				period: "PT5M",
-				currentTime: endDate
-			},    
+    this.setView = function(lat, long, zoomLevel) {
+        map.setView(L.latLng(lat, long), zoomLevel)
+    };
 
-			timeDimensionControlOptions: {
-				autoPlay: true,
-				playerOptions: {
-					buffer: 36,
-					transitionTime: 100,
-					loop: false,
-					startOver:true
-				}
-			},
-			center: [latitude, longitude] // 31.205482,-82.4331197 test coordinates
-		});
-		map.timeDimensionControl._player.on('stop', function(){ 
-			setTimeout( function() {
-				map.timeDimensionControl._player.setLooped(true);
-				map.timeDimensionControl._player.start();
-				setTimeout(function(){map.timeDimensionControl._player.setLooped(false)}, 1000);
-			}, 1000) 
-		});
-		
-		
-		// basemap
-		// streets cj9fqw1e88aag2rs2al6m3ko2
-		// satellite streets cj8p1qym6976p2rqut8oo6vxr
-		// weatherscan green cj8owq50n926g2smvagdxg9t8
-		L.tileLayer('https://api.mapbox.com/styles/v1/swaldner/cj8p1qym6976p2rqut8oo6vxr/tiles/{z}/{x}/{y}?access_token=pk.eyJ1Ijoic3dhbGRuZXIiLCJhIjoiY2o4ZGpjcnVvMHBhazMzcDVnanZmd2lobCJ9.Kr5329g4YyZIlnYfHNXRWA', {
-			tileSize: 512,
-			zoomOffset: -1
-		}).addTo(map);	
+    // Main function to initialize the map and start the process
+    function initialize() {
+        // Clear any existing map instance in the container
+        if (map) {
+            map.remove();
+        }
 
+        map = L.map(divID, {
+            zoom: zoom,
+            fullscreenControl: false,
+            center: [latitude, longitude],
+            attributionControl: false
+        });
 
-		var radarWMS = L.nonTiledLayer.wms("https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer", {
-			layers: '1',
-			format: 'image/png',
-			transparent: true,
-			opacity: 0.8
-		});
-		
-		if (withSat) {
-					
-			var goes_visible_sat = L.nonTiledLayer.wms('https://nowcoast.noaa.gov/arcgis/services/nowcoast/sat_meteo_imagery_time/MapServer/WMSServer', {
-				layers: '9',  // 9 for visible sat
-				format: 'image/png',
-				transparent: true,
-				opacity:0.7,
-				useCanvas:true
-			}),			
-			    satellitetimeLayer = L.timeDimension.layer.wms(goes_visible_sat, {
-				proxy: proxy,
-				updateTimeDimension: false,
-				cache:1
-			});
-			
-			satellitetimeLayer.addTo(map).on('timeload',function(t) {
-				var canvas, ctx,
-					imageData, data,
-					i,
-					layers = t.target._layers,
-					keys = Object.keys(layers);
+        // Use the specified Mapbox basemap from radar.js
+        L.tileLayer('https://api.mapbox.com/styles/v1/goldbblazez/ckgc8lzdz4lzh19qt7q9wbbr9/tiles/{z}/{x}/{y}?access_token=' + map_key, {
+            tileSize: 512,
+            zoomOffset: -1,
+            attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
 
-				for (var key of keys) {
-					canvas = layers[key]._bufferCanvas;
+        loadAndAnimateImages();
+    }
 
-					if (canvas.dataset.isAlpha){continue}
+    // Fetches image timestamps and sets up the animation
+    function loadAndAnimateImages() {
+        // Clear existing layers and animation interval
+        if (animationInterval) {
+            clearInterval(animationInterval);
+        }
+        timeLayers.forEach(layer => layer.remove());
+        timeLayers = [];
 
-					ctx = canvas.getContext('2d');
+        const product = withSat ? 'satrad' : 'twcRadarMosaic';
+        const fetchUrl = `https://api.weather.com/v3/TileServer/series/productSet/PPAcore?filter=${product}&apiKey=${api_key}`;
 
-					imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);					
-					
-					var pixels = imageData.data,
-						brighten = 0,
-						contrast = 10;
-					for(var i = 0; i < pixels.length; i+=4){//loop through all data
-						
-						pixels[i] += brighten;
-						pixels[i+1] += brighten;
-						pixels[i+2] += brighten;
+        fetch(fetchUrl)
+            .then(response => response.json())
+            .then(data => {
+                const seriesInfo = data.seriesInfo[product];
+                if (!seriesInfo || !seriesInfo.series) {
+                    console.error("Could not find radar/satellite series data.");
+                    return;
+                }
 
-						var brightness = (pixels[i]+pixels[i+1]+pixels[i+2])/3; //get the brightness
+                const sortedTimestamps = seriesInfo.series.sort((a, b) => a.ts - b.ts);
 
-						pixels[i]   += brightness > 127 ? contrast : -contrast;
-						pixels[i+1] += brightness > 127 ? contrast : -contrast;
-						pixels[i+2] += brightness > 127 ? contrast : -contrast;
+                // Create a Leaflet layer for each timestamp
+                sortedTimestamps.forEach(timestamp => {
+                    const tileUrl = `https://api.weather.com/v3/TileServer/tile/${product}?ts=${timestamp.ts}&xyz={x}:{y}:{z}&apiKey=${api_key}`;
+                    const layer = L.tileLayer(tileUrl, {
+                        opacity: 0, // Start with the layer invisible
+                        tileSize: 256,
+                        pane: 'tilePane' // Ensure it renders above the basemap
+                    });
+                    timeLayers.push(layer);
+                    layer.addTo(map);
+                });
 
-						var rgb = pixels[i] + pixels[i+1] + pixels[i+2];
-						pixels[i] = pixels[i+1] = pixels[i+2] = 255;
-						pixels[i+3] = rgb / 3;		
-					}
-					imageData.data = pixels;		
+                // Start the animation loop
+                animateRadar();
+            })
+            .catch(console.error);
+    }
 
-					// overwrite original image
-					ctx.putImageData(imageData, 0, 0);
+    // Animation loop function
+    function animateRadar() {
+        let currentIndex = 0;
 
-					canvas.dataset.isAlpha = true;
+        const loop = () => {
+            // Set opacity for all layers
+            timeLayers.forEach((layer, index) => {
+                layer.setOpacity(index === currentIndex ? 0.8 : 0);
+            });
 
-				}
+            currentIndex++;
 
-			});			
-		}
-		
+            // If we've reached the end, pause and then restart the animation
+            if (currentIndex >= timeLayers.length) {
+                clearInterval(animationInterval);
+                setTimeout(() => {
+                    // Fetch fresh data before restarting
+                    loadAndAnimateImages();
+                }, 1500); // Pause for 1.5 seconds at the end
+            }
+        };
 
-		var proxy = 'js/leaflet/proxy.php';
-		var radarTimeLayer = L.timeDimension.layer.wms(radarWMS, {
-			proxy: proxy,
-			updateTimeDimension: false
-		});
-		
-		radarTimeLayer.addTo(map);
-	
+        // Start the animation, changing frames every 100ms
+        animationInterval = setInterval(loop, 100);
+    }
 
-	}
+    // Start the process
+    initialize();
 }
 
-
-
-
-
-/* 
+/*
  * Workaround for 1px lines appearing in some browsers due to fractional transforms
  * and resulting anti-aliasing.
  * https://github.com/Leaflet/Leaflet/issues/3575
  */
 
-(function(){
-	//return;
+(function() {
     var originalInitTile = L.GridLayer.prototype._initTile
     L.GridLayer.include({
-        _initTile: function (tile) {
+        _initTile: function(tile) {
             originalInitTile.call(this, tile);
 
             var tileSize = this.getTileSize();
@@ -183,6 +131,4 @@ function Radar(divIDin, intervalHoursIn, zoomIn, latitudeIn, longitudeIn, withSa
             tile.style.height = tileSize.y + 1 + 'px';
         }
     });
-})()
-
-
+})();

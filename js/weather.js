@@ -57,7 +57,8 @@ function WeatherManager() {
 		} else {
 			
 			// get lat lon from user's ip
-			$.getJSON("http://ip-api.com/json/?callback=?", function(data) {						
+			// in theory this shouldn't happen but some idiot is gonna try it
+			$.getJSON("http://pro.ip-api.com/json/?key=TShzQlq7O9KuthI", function(data) {						
 				dataMan = createDataManager( data.lat+','+data.lon );
 			});
 
